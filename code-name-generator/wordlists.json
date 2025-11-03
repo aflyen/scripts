@@ -1,0 +1,36 @@
+{
+  "colors": [
+    "Red", "Blue", "Green", "Yellow", "Orange", "Purple", "Silver", "Golden",
+    "Crimson", "Azure", "Emerald", "Amber", "Violet", "Indigo", "Cyan", "Magenta",
+    "Coral", "Jade", "Ruby", "Sapphire", "Pearl", "Ivory", "Onyx", "Platinum",
+    "Bronze", "Copper", "Steel", "Iron", "Chrome", "Cobalt"
+  ],
+  "animals": [
+    "Eagle", "Tiger", "Lion", "Bear", "Wolf", "Hawk", "Falcon", "Panther",
+    "Leopard", "Cheetah", "Jaguar", "Cobra", "Viper", "Python", "Dragon",
+    "Phoenix", "Griffin", "Raven", "Owl", "Fox", "Lynx", "Puma", "Orca",
+    "Shark", "Dolphin", "Whale", "Bison", "Mustang", "Stallion", "Pegasus",
+    "Rhino", "Elephant", "Gorilla", "Condor", "Vulture", "Sparrow", "Robin"
+  ],
+  "locations": [
+    "Tokyo", "Paris", "London", "Berlin", "Rome", "Madrid", "Vienna", "Prague",
+    "Oslo", "Stockholm", "Helsinki", "Dublin", "Athens", "Lisbon", "Warsaw",
+    "Budapest", "Copenhagen", "Brussels", "Amsterdam", "Zurich", "Geneva",
+    "Milan", "Venice", "Florence", "Munich", "Hamburg", "Sydney", "Melbourne",
+    "Toronto", "Montreal", "Vancouver", "Seattle", "Denver", "Phoenix", "Dallas",
+    "Boston", "Austin", "Portland", "Chicago", "Miami", "Atlanta", "Nashville",
+    "Singapore", "Dubai", "Kyoto", "Osaka", "Seoul", "Bangkok", "Hanoi"
+  ],
+  "adjectives": [
+    "Swift", "Bold", "Brave", "Mighty", "Strong", "Quick", "Silent", "Hidden",
+    "Ancient", "Modern", "Future", "Cosmic", "Solar", "Lunar", "Arctic", "Alpine",
+    "Ocean", "Storm", "Thunder", "Lightning", "Crystal", "Diamond", "Quantum",
+    "Digital", "Cyber", "Nova", "Prime", "Ultra", "Mega", "Turbo"
+  ],
+  "nouns": [
+    "Summit", "Horizon", "Eclipse", "Zenith", "Apex", "Nexus", "Vortex", "Matrix",
+    "Vector", "Sigma", "Delta", "Alpha", "Omega", "Titan", "Atlas", "Olympus",
+    "Citadel", "Fortress", "Tower", "Beacon", "Portal", "Gateway", "Bridge",
+    "Haven", "Sanctuary", "Outpost", "Station", "Base", "Core", "Hub"
+  ]
+}
