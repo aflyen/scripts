@@ -24,3 +24,6 @@ Generates lorem ipsum-style article filler text from curated sentence pools in E
 
 ### spo-unique-permissions
 SharePoint Online utilities for managing unique permissions on files. Contains scripts to find files with unique permissions in document libraries and reset them back to inherited permissions.
+
+### wsl
+Automated backup utility for Windows Subsystem for Linux (WSL) distributions. Creates monthly backups of all installed WSL distros with automatic retention policy management and operation logging.
