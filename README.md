@@ -19,5 +19,8 @@ Generates random project code names for testing purposes. Creates 3-4 word code 
 ### create-report
 Sample solution for generating reports and exporting to CSV files. Demonstrates long-running reporting tasks with stats tracking, logging via transcript, loading data from JSON sources, and exporting ordered CSV reports.
 
+### dummy-text-generator
+Generates lorem ipsum-style article filler text from curated sentence pools in English or Norwegian. Supports simple templates (`Simple`, `NewsArticle`, `Document`, `Custom`), optional titles, adjustable paragraph counts, and basic markdown formatting for demo-ready content.
+
 ### spo-unique-permissions
 SharePoint Online utilities for managing unique permissions on files. Contains scripts to find files with unique permissions in document libraries and reset them back to inherited permissions.

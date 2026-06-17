@@ -1,0 +1,120 @@
+{
+  "english": {
+    "titles": [
+      "Operational Horizon",
+      "Practical Momentum",
+      "Structured Clarity",
+      "Sensible Velocity",
+      "Measured Innovation",
+      "Predictable Growth",
+      "Calm Delivery",
+      "Focused Alignment",
+      "Reliable Progress",
+      "Useful Ambition"
+    ],
+    "subtitleWords": [
+      "Context",
+      "Signals",
+      "Direction",
+      "Execution",
+      "Findings",
+      "Planning",
+      "Review",
+      "Focus",
+      "Overview",
+      "Outlook"
+    ],
+    "sentences": [
+      "The planning dashboard politely celebrated a decision no one remembered making yesterday.",
+      "Our timeline smiled with confidence while the milestones quietly traded hats at lunch.",
+      "A sensible spreadsheet walked into strategy and left carrying three optimistic assumptions.",
+      "The project brief nodded professionally as the coffee machine proposed a backup roadmap.",
+      "Every status meeting produced clarity, then misplaced it near the whiteboard magnets.",
+      "The launch checklist felt complete, except for a tiny question about reality alignment.",
+      "We adjusted the process carefully until the process began adjusting us right back.",
+      "A thoughtful metric waved from the corner and asked to be interpreted less dramatically.",
+      "The draft policy sounded mature and still managed to trip over its own glossary.",
+      "Stakeholders applauded the prototype because it looked decisive from a safe distance.",
+      "The morning update arrived early and confidently explained tomorrow in present tense.",
+      "A calm committee approved momentum, provided momentum remained fully documented and reversible.",
+      "Our pilot initiative expanded rapidly after discovering that ambiguity scales extremely well.",
+      "The budget narrative stayed balanced by leaning equally toward optimism and mild surprise.",
+      "One helpful chart translated uncertainty into bars that looked reassuringly expensive.",
+      "The delivery plan promised simplicity and then introduced sixteen elegant exception paths.",
+      "A strategic note appeared in the minutes and immediately requested another minute.",
+      "We closed the action item by opening a healthier and more collaborative action item.",
+      "The quality review was constructive, energetic, and slightly confused about chronological order.",
+      "By afternoon, the roadmap felt stable enough to survive at least one fresh idea.",
+      "Our governance model remained flexible, especially when confronted with firm opinions and snacks.",
+      "The communications plan was crisp, polite, and subtly incompatible with all known calendars.",
+      "A well-intended requirement matured overnight into a family of highly social requirements.",
+      "The final recap concluded that progress was excellent and definitions were still in progress."
+    ],
+    "prefaces": [
+      "In summary, the situation is stable, active, and slightly theatrical.",
+      "This update is straightforward, useful, and cheerfully difficult to predict.",
+      "The main development is positive, coordinated, and unexpectedly conversational.",
+      "Current signals indicate momentum, confidence, and a healthy amount of improvisation.",
+      "Today\'s picture is clear enough for action and vague enough for optimism."
+    ]
+  },
+  "norwegian": {
+    "titles": [
+      "Praktisk fremdrift",
+      "Stabil retning",
+      "Nyttig oversikt",
+      "Rolig utvikling",
+      "Presis plan",
+      "Tydelig fokus",
+      "Fornuftig tempo",
+      "Samlet innsats",
+      "Trygg leveranse",
+      "Bedre samspill"
+    ],
+    "subtitleWords": [
+      "Bakgrunn",
+      "Signaler",
+      "Retning",
+      "Gjennomforing",
+      "Funn",
+      "Plan",
+      "Oppsummering",
+      "Fokus",
+      "Oversikt",
+      "Utsikter"
+    ],
+    "sentences": [
+      "Planleggingsmotenikket hoytidelig mens tidslinjen flyttet kaffekoppen til neste kvartal.",
+      "Statusarket virket overbevisende helt til margen begynte a foresla nye prioriteringer.",
+      "Prosjektbeskrivelsen var saklig og vennlig, men veldig glad i omveier pa tirsdager.",
+      "Vi fant god flyt i arbeidet etter at flyten fikk sin egen koordinator.",
+      "En ryddig tabell forklarte helheten pa en mate som gjorde detaljene ekstra eventyrlystne.",
+      "Leveranseplanen var enkel, med bare noen fa elegante unntak i hver setning.",
+      "Moteagendaen holdt seg profesjonell mens punkt fire la inn en improvisert pause.",
+      "Fremdriftsrapporten kom tidlig og beskrev morgendagen med imponerende na-tid.",
+      "Et forsiktig maletall vinket fra hjornet og ba om litt mindre dramatisk tolkning.",
+      "Pilotprosjektet vokste raskt da uklarhet viste seg a vare skalerbart.",
+      "Budsjettfortellingen holdt balansen mellom optimisme og kontrollert overraskelse.",
+      "Et nytt krav dukket opp, hilste pent og inviterte tre krav til.",
+      "Kvalitetssjekken var grundig, energisk og lett usikker pa rekkefolgen.",
+      "Kommunikasjonsplanen var tydelig, vennlig og forsiktig uenig med kalenderen.",
+      "Vi avsluttet tiltaket ved a starte et bedre og mer samarbeidsvillig tiltak.",
+      "Styringsmodellen var fleksibel, spesielt nar den motte sterke meninger og vafler.",
+      "Dagens oppsummering var presis nok for handling og uklar nok for entusiasme.",
+      "En liten fotnote i referatet ba om mer plass og fikk straks et eget avsnitt.",
+      "Arbeidsgruppen bekreftet retning, forutsatt at retningen kunne justeres etter lunsj.",
+      "Ved dagens slutt var planen robust nok til minst en helt ny ide.",
+      "Prosessen ble forbedret jevnlig helt til prosessen begynte a forbedre oss.",
+      "Beslutningsgrunnlaget var solid, men overraskende mottakelig for gode metaforer.",
+      "Rapporten oppsummerte fremgang som sterk og begrepsbruk som under videre utvikling.",
+      "Milepalene sa fornoyde ut, selv om de byttet navn mellom to statusmoter."
+    ],
+    "prefaces": [
+      "Kort oppsummert er situasjonen stabil, aktiv og litt teatralsk.",
+      "Denne oppdateringen er tydelig, nyttig og overraskende samtalevennlig.",
+      "Hovedbildet er positivt, koordinert og passe improvisert.",
+      "Signalene peker pa fremdrift, trygghet og en sunn dose kreativ justering.",
+      "Dagens status er klar nok for handling og vag nok for optimisme."
+    ]
+  }
+}
