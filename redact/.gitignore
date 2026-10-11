@@ -1,0 +1,15 @@
+# Real customer mapping and generated placeholders: NEVER commit
+mapping.json
+mapping.auto.json
+mapping.*.json
+!mapping.example.json
+
+# Anything that might hold real data
+*.log
+*.redacted.*
+*.local.*
+*.pfx
+*.pem
+*.key
+.env
+.env.*

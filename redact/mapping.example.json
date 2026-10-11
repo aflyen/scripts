@@ -1,0 +1,38 @@
+{
+  "_readme": [
+    "Copy to mapping.json (git-ignored) and replace the fictional 'fjordtek' values with your customer.",
+    "replacements: map the customer NAME itself first. It is matched inside longer words, case-insensitive,",
+    "  so 'fjordtek' also covers fjordtek.no, func-fjordtek-prod, kv-fjordtek, FJORDTEK-PC042.",
+    "  Add longer phrases only when they need their own placeholder. Longest match wins.",
+    "  Use \"wholeWord\": true for short names/abbreviations that could appear inside other words.",
+    "  Every placeholder must be unique ignoring case ('contoso' and 'Contoso' count as the same).",
+    "patterns: reversible custom regex. {n} = running number. A group named 'v' limits what is replaced.",
+    "secretPatterns: irreversible custom regex, replaced with <redacted:name>.",
+    "ignore: values that are never touched (well-known Microsoft app IDs, localhost)."
+  ],
+
+  "replacements": [
+    { "find": "fjordtek",       "replace": "contoso" },
+    { "find": "Fjordtek AS",    "replace": "Contoso Ltd" },
+    { "find": "FJT",            "replace": "CTS",        "wholeWord": true },
+    { "find": "Ola Nordmann",   "replace": "Person One" }
+  ],
+
+  "patterns": [
+    { "name": "server", "regex": "\\bSRV-[A-Z0-9]+\\b", "replace": "SERVER{n}" },
+    { "name": "ticket", "regex": "\\bFJT-\\d+\\b",      "replace": "TICKET-{n}" }
+  ],
+
+  "secretPatterns": [
+    { "name": "vault-ref", "regex": "(?<=@Microsoft\\.KeyVault\\(SecretUri=)(?<v>[^)]+)" }
+  ],
+
+  "ignore": [
+    "00000003-0000-0000-c000-000000000000",
+    "00000003-0000-0ff1-ce00-000000000000",
+    "499b84ac-1321-427f-aa17-267ca6975798",
+    "127.0.0.1",
+    "0.0.0.0",
+    "localhost"
+  ]
+}
