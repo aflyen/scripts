@@ -6,19 +6,21 @@
 
 .DESCRIPTION
   Every test runs Redact.ps1 in a child pwsh process (so COMPUTERNAME / USERNAME / REDACT_MAPPING can be
-  controlled), each with its own temp folder containing its own mapping.json (and therefore its own
-  mapping.auto.json).
+  controlled), each with its own temp folder containing its own mapping.json.
+
+  Updated when restore and the persisted mapping.auto.json were removed: the tool is now one-way and
+  stateless, so restore/round-trip tests were replaced by stateless and realistic-log leak tests.
 
   Category tags:
     SPEC        behaviour explicitly described in README.md / mapping.example.json
     EXPECTATION what a careful, security-minded user would reasonably expect but the README does not state
-  Kind tags (for triage): LEAK, FP (false positive / info destroyed), ROUNDTRIP, RESTORE, MAPPING, MISC
+  Kind tags (for triage): LEAK, FP (false positive / info destroyed), MAPPING, MISC
 
   Fake secrets are assembled at runtime from fragments so this file contains no scannable tokens.
 
 .EXAMPLE
   pwsh -File .\Tests\Test-Redact.Spec.ps1
-  pwsh -File .\Tests\Test-Redact.Spec.ps1 -Filter '*restore*'
+  pwsh -File .\Tests\Test-Redact.Spec.ps1 -Filter '*stateless*'
 #>
 [CmdletBinding()]
 param(
@@ -49,15 +51,13 @@ New-Item -ItemType Directory -Path $Root -Force | Out-Null
 # ---------------------------------------------------------------------------------------------
 $Runner = Join-Path $Root 'runner.ps1'
 @'
-param([string]$Script, [string]$InFile, [string]$Map, [switch]$Restore, [switch]$Reset, [switch]$NoMap)
+param([string]$Script, [string]$InFile, [string]$Map, [switch]$NoMap)
 $enc = [Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $enc
 $OutputEncoding = $enc
 $h = @{ NoClipboard = $true; Quiet = $true }
 if ($InFile)     { $h.Path = $InFile }
 if (-not $NoMap) { $h.MappingPath = $Map }
-if ($Restore)    { $h.Restore = $true }
-if ($Reset)      { $h.Reset = $true }
 $global:LASTEXITCODE = 0
 $failed = $false
 try {
@@ -107,7 +107,7 @@ function Invoke-Tool {
     param(
         [Parameter(Mandatory)] $Ctx,
         [AllowEmptyString()] [string]$Text = '',
-        [switch]$Restore, [switch]$Reset, [hashtable]$EnvVars, [string]$MapArg, [switch]$NoMap, [string]$WorkDir
+        [hashtable]$EnvVars, [string]$MapArg, [switch]$NoMap, [string]$WorkDir
     )
     $script:InCounter++
     $in = Join-Path $Ctx.Dir ('in{0:D4}.txt' -f $script:InCounter)
@@ -117,8 +117,6 @@ function Invoke-Tool {
     foreach ($a in '-NoProfile', '-NonInteractive', '-File', $Runner, '-Script', $ScriptPath, '-InFile', $in) { $psi.ArgumentList.Add($a) }
     if ($NoMap) { $psi.ArgumentList.Add('-NoMap') }
     else { $psi.ArgumentList.Add('-Map'); $psi.ArgumentList.Add(($MapArg ? $MapArg : $Ctx.Map)) }
-    if ($Restore) { $psi.ArgumentList.Add('-Restore') }
-    if ($Reset)   { $psi.ArgumentList.Add('-Reset') }
     $psi.UseShellExecute        = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError  = $true
@@ -143,14 +141,13 @@ function Invoke-Tool {
     $out = ($o.Result -replace "`r`n", "`n").TrimEnd("`n")
     $err = ($e.Result -replace "`r`n", "`n").Trim()
     $r = [pscustomobject]@{ Out = $out; Err = $err; Code = $p.ExitCode; Ms = $sw.ElapsedMilliseconds }
-    $mode = if ($Reset) { 'RESET' } elseif ($Restore) { 'RESTORE' } else { 'ANON' }
-    $script:Trace.Add(("--- {0} input:`n{1}`n--- stdout (exit {2}):`n{3}{4}" -f $mode, $Text, $r.Code, $r.Out, ($r.Err ? "`n--- stderr:`n$($r.Err)" : '')))
+    $script:Trace.Add(("--- input:`n{0}`n--- stdout (exit {1}):`n{2}{3}" -f $Text, $r.Code, $r.Out, ($r.Err ? "`n--- stderr:`n$($r.Err)" : '')))
     $r
 }
 
 function Redact {
-    param([Parameter(Mandatory)] $Ctx, [AllowEmptyString()] [string]$Text, [switch]$Restore, [hashtable]$EnvVars)
-    $r = Invoke-Tool -Ctx $Ctx -Text $Text -Restore:$Restore -EnvVars $EnvVars
+    param([Parameter(Mandatory)] $Ctx, [AllowEmptyString()] [string]$Text, [hashtable]$EnvVars)
+    $r = Invoke-Tool -Ctx $Ctx -Text $Text -EnvVars $EnvVars
     if ($r.Code -ne 0) { throw "Tool exited with code $($r.Code). stderr: $($r.Err)" }
     $r.Out
 }
@@ -335,13 +332,6 @@ T 'secret: custom secretPattern produces <redacted:vault-ref>' SPEC MISC {
     $out = Redact $c 'Setting=@Microsoft.KeyVault(SecretUri=https://kv-acme.vault.azure.net/secrets/x/)'
     Assert-Has $out '<redacted:vault-ref>'
 }
-T 'secret: <redacted:...> is never restored and secret stays gone' SPEC RESTORE {
-    $c = New-Ctx
-    $anon = Redact $c ('Authorization: Bearer ' + $Sec.Opaque)
-    $back = Redact $c $anon -Restore
-    Assert-NoLeak $back (Hide $Sec.Opaque)
-    Assert-Exact (Redact $c 'Value <redacted:password> ok' -Restore) 'Value <redacted:password> ok'
-}
 
 # secrets in forms the README does not list (adversarial)
 T 'leak: publish profile userPWD attribute' EXPECTATION LEAK {
@@ -484,7 +474,7 @@ T 'pattern: IPv4 with port and CIDR' SPEC LEAK { $c = New-Ctx; Assert-NoLeak (Re
 T 'pattern: ignore list 127.0.0.1, 0.0.0.0, localhost untouched' SPEC FP {
     $c = New-Ctx; $t = 'Listening on 0.0.0.0:7071, 127.0.0.1 and localhost'; Assert-Exact (Redact $c $t) $t
 }
-T 'pattern: 300 distinct IPs -> valid, unique, documentation-range IPs, round trip' SPEC ROUNDTRIP {
+T 'pattern: 300 distinct IPs -> valid, unique, documentation-range IPs' SPEC LEAK {
     $c = New-Ctx
     $ips = foreach ($i in 0..299) { '10.{0}.{1}.{2}' -f (1 + [int]($i / 200)), ($i % 200), (7 + $i % 13) }
     $text = $ips -join "`n"
@@ -498,7 +488,6 @@ T 'pattern: 300 distinct IPs -> valid, unique, documentation-range IPs, round tr
         Assert-True ($l -match $docRanges) "not in documentation range: '$l'"
     }
     Assert-True (($lines | Sort-Object -Unique).Count -eq 300) 'placeholders are not unique'
-    Assert-Exact (Redact $c $out -Restore) $text
 }
 
 T 'pattern: custom patterns from example mapping (SERVER{n}, TICKET-{n})' SPEC LEAK {
@@ -537,12 +526,13 @@ T 'literal: resource ID with customer name and subscription GUID' SPEC LEAK {
     $out = Redact $c "/subscriptions/$($G.Sub)/resourceGroups/rg-fjordtek-prod/providers/Microsoft.Web/sites/func-fjordtek-prod"
     Assert-NoLeak $out 'fjordtek', $G.Sub
 }
-T 'literal: chained mapping (fjordtek->contoso, contoso->fabrikam) is not applied twice' EXPECTATION ROUNDTRIP {
+T 'literal: chained mapping (fjordtek->contoso, contoso->fabrikam) is not applied twice' EXPECTATION MISC {
     $c = New-Ctx (New-Mapping -Replacements @(@{ find = 'fjordtek'; replace = 'contoso' }, @{ find = 'contoso'; replace = 'fabrikam' }))
-    $t = 'fjordtek partners with contoso'
-    $anon = Redact $c $t
-    Assert-Exact $anon 'contoso partners with fabrikam'
-    Assert-Exact (Redact $c $anon -Restore) $t
+    Assert-Exact (Redact $c 'fjordtek partners with contoso') 'contoso partners with fabrikam'
+}
+T 'literal: two values may share a placeholder (case-insensitively)' SPEC MAPPING {
+    $c = New-Ctx (New-Mapping -Replacements @(@{ find = 'fjordtek'; replace = 'contoso' }, @{ find = 'nordlys'; replace = 'Contoso' }))
+    Assert-Exact (Redact $c 'fjordtek and nordlys') 'contoso and Contoso'
 }
 
 # =============================================================================================
@@ -659,75 +649,30 @@ T 'fp: re-running on already anonymised text changes nothing (idempotent)' EXPEC
 }
 
 # =============================================================================================
-# 6. RESTORE
+# 6. STATELESS
 # =============================================================================================
-# Spec changed after the first independent run: restore now carries the AI's capitalisation over
-# (ALL CAPS / lower / Capitalised) instead of always using the mapping's spelling. Original expectation:
-#   'Ask Ola Nordmann at fjordtek; also fjordtek and fjordtek'
-T 'restore: literal case changes by the AI (Contoso, CONTOSO, PERSON ONE)' SPEC RESTORE {
-    $c = New-Ctx
-    Assert-Exact (Redact $c 'Ask PERSON ONE at Contoso; also CONTOSO and contoso' -Restore) 'Ask OLA NORDMANN at Fjordtek; also FJORDTEK and fjordtek'
+T 'stateless: no files written next to mapping.json' SPEC MISC {
+    $c = New-Ctx -SubDir 'cust'
+    [void](Redact $c "id $($G.App) mail ola.nordmann@fjordtek.no ip 10.1.2.3")
+    $files = @(Get-ChildItem -LiteralPath $c.MapDir -Name)
+    Assert-True ($files.Count -eq 1 -and $files[0] -eq 'mapping.json') "unexpected files: $($files -join ', ')"
 }
-T 'restore: literal placeholder inside longer word (contosoapp)' SPEC RESTORE {
-    $c = New-Ctx; Assert-Exact (Redact $c 'Use contosoapp and func-contoso-prod' -Restore) 'Use fjordtekapp and func-fjordtek-prod'
-}
-T 'restore: wholeWord literal only as whole word (CTS vs CTSX)' SPEC RESTORE {
-    $c = New-Ctx; Assert-Exact (Redact $c 'CTS team and CTSX' -Restore) 'FJT team and CTSX'
-}
-T 'restore: longest literal placeholder first (Contoso Ltd)' EXPECTATION RESTORE {
-    $c = New-Ctx; Assert-Exact (Redact $c 'Invoice to Contoso Ltd' -Restore) 'Invoice to Fjordtek AS'
-}
-T 'restore: genuine placeholder text is also restored (documented)' SPEC RESTORE {
-    $c = New-Ctx; Assert-Exact (Redact $c 'Microsoft sample tenant contoso' -Restore) 'Microsoft sample tenant fjordtek'
-}
-T 'restore: numbered placeholders whole token only (192.0.2.15, SERVER12)' SPEC RESTORE {
-    $c = New-Ctx
-    Assert-Exact (Redact $c 'IP 10.9.8.7 on SRV-APP01') 'IP 192.0.2.1 on SERVER1'
-    Assert-Exact (Redact $c '192.0.2.1, 192.0.2.15, SERVER1, SERVER12' -Restore) '10.9.8.7, 192.0.2.15, SRV-APP01, SERVER12'
-}
-T 'restore: numbered placeholders next to punctuation/markdown' SPEC RESTORE {
-    $c = New-Ctx
-    Assert-Exact (Redact $c 'ola.nordmann@fjordtek.no on dc01.acme.local via SRV-APP01') 'user1@example.com on host1.internal via SERVER1'
-    Assert-Exact (Redact $c '(user1@example.com), `host1.internal`, **SERVER1**.' -Restore) '(ola.nordmann@fjordtek.no), `dc01.acme.local`, **SRV-APP01**.'
-}
-T 'restore: numbered placeholders with case changed by the AI' EXPECTATION RESTORE {
-    $c = New-Ctx
-    [void](Redact $c 'ola.nordmann@fjordtek.no on dc01.acme.local via SRV-APP01')
-    Assert-Exact (Redact $c 'USER1@EXAMPLE.COM and Host1.Internal and server1' -Restore) 'ola.nordmann@fjordtek.no and dc01.acme.local and SRV-APP01'
-}
-T 'restore: unknown numbered placeholder left as-is' EXPECTATION RESTORE {
-    $c = New-Ctx; [void](Redact $c 'a@b.no')
-    Assert-Exact (Redact $c 'try user99@example.com and 192.0.2.77' -Restore) 'try user99@example.com and 192.0.2.77'
-}
-T 'restore: placeholders from earlier runs (persisted) are restored' SPEC RESTORE {
-    $c = New-Ctx
-    $a = Redact $c "tenant $($G.Tenant)"
-    $b = Redact $c 'mail ola.nordmann@fjordtek.no'
-    Assert-Exact (Redact $c "$a / $b" -Restore) "tenant $($G.Tenant) / mail ola.nordmann@fjordtek.no"
-}
-T 'restore: consistency - same input twice gives identical output' SPEC MISC {
+T 'stateless: same input twice gives identical output' SPEC MISC {
     $c = New-Ctx; $t = "User ola.nordmann@fjordtek.no tenant $($G.Tenant) ip 10.1.2.3 host dc01.acme.local"
     Assert-Exact (Redact $c $t) (Redact $c $t)
 }
-T 'restore: consistency - shared value across different texts keeps its placeholder' SPEC MISC {
+T 'stateless: numbering starts at 1 on every run' SPEC MISC {
     $c = New-Ctx
     Assert-Exact (Redact $c "first $($G.App)") "first $($Ph.G1)"
-    Assert-Exact (Redact $c "second $($G.Tenant) then $($G.App)") "second $($Ph.G2) then $($Ph.G1)"
+    Assert-Exact (Redact $c "second $($G.Tenant) then $($G.App)") "second $($Ph.G1) then $($Ph.G2)"
 }
-T 'reset: -Reset forgets generated placeholders' SPEC MISC {
+T 'stateless: placeholders already in the input are kept and not reused' SPEC MISC {
     $c = New-Ctx
-    [void](Redact $c "a $($G.App)"); Assert-Exact (Redact $c "b $($G.Tenant)") "b $($Ph.G2)"
-    $r = Invoke-Tool -Ctx $c -Text 'x' -Reset
-    Assert-True ($r.Code -eq 0) "-Reset exited with $($r.Code): $($r.Err)"
-    Assert-Exact (Redact $c "b $($G.Tenant)") "b $($Ph.G1)"
-}
-T 'mapping.auto.json is created next to mapping.json' SPEC MISC {
-    $c = New-Ctx -SubDir 'cust'
-    [void](Redact $c "id $($G.App)")
-    Assert-True (Test-Path (Join-Path $c.MapDir 'mapping.auto.json')) 'mapping.auto.json not found next to mapping.json'
+    Assert-Exact (Redact $c "known $($Ph.G1), user1@example.com, 192.0.2.1, host1.internal, SERVER1; new $($G.App), a@b.no, 10.1.1.1, dc01.acme.local, SRV-X") `
+        "known $($Ph.G1), user1@example.com, 192.0.2.1, host1.internal, SERVER1; new $($Ph.G2), user2@example.com, 192.0.2.2, host2.internal, SERVER2"
 }
 
-# ---- realistic round trips ------------------------------------------------------------------
+# ---- realistic logs ------------------------------------------------------------------------
 $LogEntra = (@'
 PS> Connect-MgGraph -TenantId {{TEN}} -ClientId {{APP}}
 Get-MgUser_Get: Resource 'ola.nordmann@fjordtek.no' does not exist or one of its queried reference-property objects are not present.
@@ -791,23 +736,23 @@ User FJORDTEK\mhansen opened C:\Users\mhansen\Desktop\run.ps1
 Build on WS-TESTBOX77 by kjetilh in C:\Users\kjetilh\src
 '@)
 
-$RoundTrips = @(
+$Logs = @(
     @{ N = 'Entra/Graph error'; T = $LogEntra; F = @('fjordtek', 'nordmann', $G.Tenant, $G.App, $G.Req, $G.Inv) },
     @{ N = 'Azure Functions log'; T = $LogFunc; F = @('fjordtek', 'nordmann', $G.App, $G.Inv, '10.0.4.17', '10.0.8.5', 'stfjordtekdata') },
     @{ N = 'PnP.PowerShell output'; T = $LogPnP; F = @('fjordtek', 'nordmann', 'kari.admin', $G.App, $Thumb) },
     @{ N = 'ADO pipeline log'; T = $LogAdo; F = @('fjordtek', 'nordmann', $G.Sub, 'FJT-2211', 'SRV-BUILD07', "'FJT-") },
     @{ N = 'hosts/users/own machine mix (host1 vs host1.internal, winuser)'; T = $LogHosts; F = @('WKS0042', 'fjordtek', 'mhansen', 'LAPTOP-7XK2P', 'TESTBOX77', 'kjetilh', '10.10.1.5') }
 )
-foreach ($rt in $RoundTrips) {
-    $x = $rt
-    T "roundtrip: $($x.N)" SPEC ROUNDTRIP {
+foreach ($lg in $Logs) {
+    $x = $lg
+    T "realistic: $($x.N)" SPEC LEAK {
         $c = New-Ctx
         $anon = Redact $c $D.T
         Assert-NoLeak $anon $D.F
-        Assert-Exact (Redact $c $anon -Restore) $D.T
+        Assert-Exact (Redact $c $anon) $anon
     } $x
 }
-T 'roundtrip: connection strings (secrets become <redacted:…>, rest restored exactly)' SPEC ROUNDTRIP {
+T 'realistic: connection strings (secrets become <redacted:…>, rest kept)' SPEC LEAK {
     $c = New-Ctx
     $t = (@'
 [2026-10-11 08:40:01] Loading settings for func-fjordtek-prod
@@ -819,22 +764,12 @@ BlobSas=https://stfjordtekdata.blob.core.windows.net/export/users.csv?sv=2022-11
 '@).Replace('{{STOR}}', $Sec.StorKey).Replace('{{SQLPW}}', $Sec.SqlPw).Replace('{{AIKEY}}', $G.AiKey).Replace('{{SIG}}', $Sec.Sig)
     $anon = Redact $c $t
     Assert-NoLeak $anon ((Hide $Sec.StorKey) + (Hide $Sec.SqlPw) + (Hide $Sec.Sig) + @('fjordtek', $G.AiKey))
-    $back = Redact $c $anon -Restore
-    Assert-NoLeak $back ((Hide $Sec.StorKey) + (Hide $Sec.SqlPw) + (Hide $Sec.Sig))
-    $rx = [regex]::Escape($t)
-    foreach ($s in $Sec.StorKey, $Sec.SqlPw, $Sec.Sig) { $rx = $rx.Replace([regex]::Escape($s), '<redacted:[^>]+>') }
-    if ($back -notmatch ('^' + $rx + '$')) { throw "MISMATCH: restored text does not equal original (with secrets as <redacted:…>)`n  actual:`n$back" }
+    Assert-Has $anon 'Encrypt=True;Connection Timeout=30;', 'EndpointSuffix=core.windows.net', 'Settings loaded (4 values)'
 }
 
 # =============================================================================================
 # 7. MAPPING VALIDATION / CLI
 # =============================================================================================
-T 'mapping: case-only placeholder collision rejected' SPEC MAPPING {
-    $c = New-Ctx (New-Mapping -Replacements @(@{ find = 'fjordtek'; replace = 'contoso' }, @{ find = 'nordlys'; replace = 'Contoso' }))
-    $r = Invoke-Tool -Ctx $c -Text 'fjordtek and nordlys'
-    Assert-True (Test-HasError $r) "expected an error, got exit $($r.Code), stdout '$($r.Out)'"
-    Assert-NoLeak $r.Out 'fjordtek', 'nordlys'
-}
 T 'mapping: empty replace rejected' SPEC MAPPING {
     $c = New-Ctx (New-Mapping -Replacements @(@{ find = 'fjordtek'; replace = '' }))
     $r = Invoke-Tool -Ctx $c -Text 'fjordtek'
@@ -853,7 +788,6 @@ T 'mapping: relative -MappingPath resolved from current folder' SPEC MAPPING {
     $r = Invoke-Tool -Ctx $c -Text "fjordtek $($G.App)" -MapArg 'mapping.json' -WorkDir $c.Dir
     Assert-True ($r.Code -eq 0) "exit $($r.Code): $($r.Err)"
     Assert-Exact $r.Out "contoso $($Ph.G1)"
-    Assert-True (Test-Path (Join-Path $c.Dir 'mapping.auto.json')) 'mapping.auto.json not created next to relative mapping'
 }
 T 'mapping: relative -MappingPath in subfolder' SPEC MAPPING {
     $c = New-Ctx -SubDir 'cust'
@@ -930,7 +864,7 @@ $fails = @($results | Where-Object { -not $_.Pass })
 Write-Host ("TOTAL       {0,3} tests  {1,3} pass  {2,3} fail" -f $results.Count, ($results.Count - $fails.Count), $fails.Count)
 if ($fails) {
     Write-Host "`nFailed:"
-    foreach ($f in $fails | Sort-Object { @{ LEAK = 0; ROUNDTRIP = 1; RESTORE = 2; MAPPING = 3; FP = 4; MISC = 5 }[$_.Kind] }) {
+    foreach ($f in $fails | Sort-Object { @{ LEAK = 0; MAPPING = 1; FP = 2; MISC = 3 }[$_.Kind] }) {
         Write-Host ("  [{0}] [{1}] {2}" -f $f.Kind, $f.Cat, $f.Name)
     }
 }

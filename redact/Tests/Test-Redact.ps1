@@ -16,10 +16,10 @@ Copy-Item (Join-Path $root 'mapping.example.json') (Join-Path $tmp 'mapping.json
 $map = Join-Path $tmp 'mapping.json'
 $script:fail = 0; $script:pass = 0
 
-function Invoke-Redact([string]$text, [switch]$Restore, [string]$Mapping = $map) {
+function Invoke-Redact([string]$text, [string]$Mapping = $map) {
     $in = Join-Path $tmp 'in.txt'
     [IO.File]::WriteAllText($in, $text)
-    $out = & $script -Path $in -NoClipboard -Quiet -MappingPath $Mapping -Restore:$Restore 2>$null
+    $out = & $script -Path $in -NoClipboard -Quiet -MappingPath $Mapping 2>$null
     ($out -join "`n").TrimEnd()
 }
 
@@ -64,7 +64,7 @@ foreach ($c in $cases) {
 }
 
 $out = Invoke-Redact "Thumbprint: $($gitHash.ToUpper())"
-Assert 'thumbprint -> reversible placeholder' ($out -eq 'Thumbprint: THUMBPRINT01') "-> $out"
+Assert 'thumbprint -> numbered placeholder' ($out -eq 'Thumbprint: THUMBPRINT01') "-> $out"
 
 Write-Host "`nNo false positives" -ForegroundColor Cyan
 $out = Invoke-Redact "commit $gitHash merged"
@@ -74,29 +74,27 @@ Assert 'ignored well-known GUID kept' ($out -eq 'Graph app 00000003-0000-0000-c0
 $out = Invoke-Redact 'tokenizer settings are fine'
 Assert 'word containing "token" untouched' ($out -eq 'tokenizer settings are fine') "-> $out"
 
-Write-Host "`nRestore" -ForegroundColor Cyan
-$orig = "fjordtek and Fjordtek AS, FJORDTEK\\ola, ola@fjordtek.no from 10.1.1.1 on SRV-APP01, app fjordtekapp, Nordmann, Ola"
+Write-Host "`nStateless" -ForegroundColor Cyan
+$before = @(Get-ChildItem $tmp -Name | Where-Object { $_ -ne 'in.txt' })
+$orig = "fjordtek and Fjordtek AS, FJORDTEK\ola, ola@fjordtek.no from 10.1.1.1 on SRV-APP01, app fjordtekapp, Nordmann, Ola"
 $anon = Invoke-Redact $orig
-$back = Invoke-Redact $anon -Restore
-Assert 'round trip incl. case, word-internal and reversed name' ($back -eq $orig) "-> $back"
-$back = Invoke-Redact 'contosoapp, 192.0.2.15, SERVER12' -Restore
-Assert 'numbered placeholders whole-token only; literals inside words' ($back -eq 'fjordtekapp, 192.0.2.15, SERVER12') "-> $back"
-$back = Invoke-Redact 'Contoso and CONTOSO and PERSON ONE' -Restore
-Assert 'restore keeps the AI''s capitalisation' ($back -eq 'Fjordtek and FJORDTEK and OLA NORDMANN') "-> $back"
-$again = Invoke-Redact $orig
-Assert 'consistent placeholders across runs' ($again -eq $anon) "-> $again"
+Assert 'literals incl. case, word-internal and reversed name' ($anon -eq 'contoso and Contoso Ltd, CONTOSO\winuser1, user1@example.com from 192.0.2.1 on SERVER1, app contosoapp, One, Person') "-> $anon"
+$after = @(Get-ChildItem $tmp -Name | Where-Object { $_ -ne 'in.txt' })
+Assert 'nothing written next to mapping.json' (-not (Compare-Object $before $after)) "new: $(Compare-Object $before $after | ForEach-Object InputObject)"
+$out = Invoke-Redact 'second run 10.2.2.2'
+Assert 'numbering starts at 1 on every run' ($out -eq 'second run 192.0.2.1') "-> $out"
+$out = Invoke-Redact $anon
+Assert 're-run on anonymised text changes nothing' ($out -eq $anon) "-> $out"
+$out = Invoke-Redact 'known 192.0.2.1 and user1@example.com, new 10.3.3.3 and a@b.no'
+Assert 'placeholders in the input are not reused' ($out -eq 'known 192.0.2.1 and user1@example.com, new 192.0.2.2 and user2@example.com') "-> $out"
 
 Write-Host "`nSharePoint hosts" -ForegroundColor Cyan
 $spo = 'https://fjordtek.sharepoint.com/ https://fjordtek-admin.sharepoint.com/ https://fjordtek-my.sharepoint.com/'
 $out = Invoke-Redact $spo
 Assert 'mapped tenant uses literal placeholder, keeps -admin/-my' ($out -eq 'https://contoso.sharepoint.com/ https://contoso-admin.sharepoint.com/ https://contoso-my.sharepoint.com/') "-> $out"
-$back = Invoke-Redact $out -Restore
-Assert 'mapped tenant round trip' ($back -eq $spo) "-> $back"
 $spo = 'https://acmetenant.sharepoint.com/ https://acmetenant-admin.sharepoint.com/ https://acmetenant-my.sharepoint.com/'
 $out = Invoke-Redact $spo
 Assert 'unmapped tenant shares one number, keeps -admin/-my' ($out -match '^https://(resource\d+)\.sharepoint\.com/ https://\1-admin\.sharepoint\.com/ https://\1-my\.sharepoint\.com/$') "-> $out"
-$back = Invoke-Redact $out -Restore
-Assert 'unmapped tenant round trip' ($back -eq $spo) "-> $back"
 
 Write-Host "`nLeaks found by the independent test run" -ForegroundColor Cyan
 $leakCases = @(
@@ -135,10 +133,6 @@ Assert 'empty "find" skipped' ($out -eq 'abc contoso') "-> $out"
 $in = Join-Path $tmp 'in.txt'; 'fjordtek' | Set-Content $in
 & $script -Path $in -NoClipboard -Quiet -MappingPath (Join-Path $tmp 'missing.json') 2>$null | Out-Null
 Assert 'missing mapping fails closed (exit 2)' ($LASTEXITCODE -eq 2) "exit=$LASTEXITCODE"
-
-'{ "replacements": [ { "find": "a1", "replace": "contoso" }, { "find": "b2", "replace": "Contoso" } ] }' | Set-Content $badMap
-$failed = $false; try { & $script -Path $in -NoClipboard -Quiet -MappingPath $badMap 2>$null | Out-Null } catch { $failed = $true }
-Assert 'case-only placeholder collision rejected' $failed
 
 Remove-Item $tmp -Recurse -Force
 Write-Host "`n$($script:pass) passed, $($script:fail) failed" -ForegroundColor $(if ($script:fail) { 'Red' } else { 'Green' })

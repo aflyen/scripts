@@ -1,50 +1,36 @@
 <#
 .SYNOPSIS
-    Anonymises (and restores) text before you paste it into an AI tool.
+    Anonymises text before you paste it into an AI tool.
 
 .DESCRIPTION
     Default: reads the clipboard, anonymises it, writes the result back to the clipboard.
     -Paste   : opens a paste window (handles large logs) instead of reading the clipboard.
     -Path    : reads a file instead.
-    -Restore : reverses placeholders in the AI's answer back to real values.
 
     Three kinds of rules, applied in this order:
-      1. Secrets   -> <redacted:type>       (irreversible, never restored)
-      2. Patterns  -> numbered placeholders (GUIDs, emails, hosts, user paths, IPs, custom regex; reversible)
-      3. Literals  -> fixed replacements from mapping.json (customer names, people; reversible, case-preserving)
+      1. Secrets   -> <redacted:type>
+      2. Patterns  -> numbered placeholders (GUIDs, emails, hosts, user paths, IPs, custom regex)
+      3. Literals  -> fixed replacements from mapping.json (customer names, people; case-preserving)
 
-    Reversible placeholders are stored in mapping.auto.json next to mapping.json, so the
-    same value always gets the same placeholder across runs. Both files are git-ignored.
+    One-way and stateless: nothing is written to disk and there is no restore. Numbering starts
+    at 1 on every run, so a value keeps its placeholder within one run, not across runs.
 
     Works in Windows PowerShell 5.1 and PowerShell 7+.
-
-.NOTES
-    TODO (improvement, undecided):
-      mapping.auto.json holds the REAL values in plain text, next to mapping.json (by default
-      inside the repo folder). It is git-ignored, but the folder may be synced (OneDrive etc.),
-      and one file mixes values from every customer you use the same mapping for.
-      Option: default to %LOCALAPPDATA%\redact\<customer>\ (one mapping + auto map per customer,
-      selected with -Customer or $env:REDACT_MAPPING), and/or encrypt it with DPAPI
-      (ConvertFrom-SecureString) so it is only readable by your Windows user.
 
 .EXAMPLE
     .\Redact.ps1                 # anonymise clipboard -> clipboard
     .\Redact.ps1 -Paste          # paste window -> clipboard
-    .\Redact.ps1 -Restore        # restore clipboard -> clipboard
     .\Redact.ps1 -Path .\app.log -NoClipboard > app.redacted.log
-    .\Redact.ps1 -Reset          # forget generated placeholders
 #>
 [CmdletBinding()]
 param(
-    [switch]$Restore,
     [switch]$Paste,
     [string]$Path,
     [string]$MappingPath = $(if ($env:REDACT_MAPPING) { $env:REDACT_MAPPING } else { Join-Path $PSScriptRoot 'mapping.json' }),
     [switch]$AllowNoMapping,
     [switch]$NoClipboard,
     [switch]$Show,
-    [switch]$Quiet,
-    [switch]$Reset
+    [switch]$Quiet
 )
 
 Set-StrictMode -Version Latest
@@ -52,11 +38,10 @@ $ErrorActionPreference = 'Stop'
 
 # Resolve relative paths against the current PowerShell location (not the process working directory)
 $MappingPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($MappingPath)
-$AutoMapPath = Join-Path ([IO.Path]::GetDirectoryName($MappingPath)) 'mapping.auto.json'
-$OnWindows   = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT   # $IsWindows doesn't exist in 5.1
+$OnWindows   =[Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT   # $IsWindows doesn't exist in 5.1
 
 #region Built-in rules ------------------------------------------------------------------
-# Secrets: irreversible. If the regex has a group named 'v', only that part is redacted; otherwise the whole match.
+# Secrets. If the regex has a group named 'v', only that part is redacted; otherwise the whole match.
 # Values true/false/null are never redacted. Order matters: specific formats first, generic key/value last.
 $KeyNames = 'password|passwd|pwd|secret|client_?secret|api_?key|access_?key|token|access_?token|refresh_?token|private_?key'
 $Quoted   = "`"(?<v>[^`"\r\n]*)`"|'(?<v>[^'\r\n]*)'"
@@ -86,7 +71,7 @@ $BuiltInSecrets = @(
     @{ name = 'kv-pair';      regex = "(?im)(?<=(?<![A-Za-z0-9])[A-Za-z0-9_-]*(?:$KeyNames)[`"']?\s*[:=]\s*)(?:$Quoted|(?<v>[^\s`"',;}&][^\r\n`"',;}&]*?)(?=[ \t]*(?:[,;}&\r\n]|$)))" }
 )
 
-# Reversible patterns. {n} = running number per pattern ({n:000} for zero padding), {ip} = documentation-range IP.
+# Patterns. {n} = running number per pattern ({n:000} for zero padding), {ip} = documentation-range IP.
 # A group named 'v' limits the replacement to that part of the match. Patterns sharing a name share numbering.
 $AzureHostSuffix = 'database\.windows\.net|vault\.azure\.net|azurewebsites\.net|servicebus\.windows\.net|azure-api\.net|azurecr\.io|azure-devices\.net|documents\.azure\.com|search\.windows\.net|redis\.cache\.windows\.net|postgres\.database\.azure\.com|mysql\.database\.azure\.com|azurefd\.net|azureedge\.net|azurestaticapps\.net|azurecontainerapps\.io|openai\.azure\.com|cognitiveservices\.azure\.com|azconfig\.io|service\.signalr\.net|eventgrid\.azure\.net|cloudapp\.azure\.com|trafficmanager\.net|kusto\.windows\.net|crm\d*\.dynamics\.com|onmicrosoft\.com|visualstudio\.com'
 $HttpServers = 'Kestrel|nginx|Apache|cloudflare|Microsoft-IIS|Microsoft-HTTPAPI|Microsoft-Azure-Application-Gateway|Windows-Azure-Blob|Windows-Azure-Web|AmazonS3|gws|ESF|envoy|openresty|LiteSpeed|Caddy'
@@ -215,9 +200,8 @@ function Show-PasteDialog {
         return [Console]::In.ReadToEnd()
     }
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-    $title = if ($Restore) { 'Paste AI answer to restore' } else { 'Paste text to anonymise' }
     $form = New-Object Windows.Forms.Form
-    $form.Text = "$title  (Ctrl+Enter = OK, Esc = cancel)"
+    $form.Text = 'Paste text to anonymise  (Ctrl+Enter = OK, Esc = cancel)'
     $form.Size = [Drawing.Size]::new(900, 600)
     $form.StartPosition = 'CenterScreen'; $form.TopMost = $true; $form.KeyPreview = $true
 
@@ -242,12 +226,7 @@ function Show-PasteDialog {
 }
 #endregion
 
-#region Load state -----------------------------------------------------------------------
-if ($Reset) {
-    if (Test-Path -LiteralPath $AutoMapPath) { Remove-Item -LiteralPath $AutoMapPath; Write-Host "Removed $AutoMapPath" -ForegroundColor Yellow }
-    return
-}
-
+#region Load mapping ---------------------------------------------------------------------
 $mapping = Read-JsonFile $MappingPath
 if (-not $mapping) {
     # Fail closed: a typo in the path would otherwise silently leak every customer name.
@@ -259,21 +238,13 @@ if (-not $mapping) {
     $mapping = @{}
 }
 
-# Literals: validate. Placeholders are compared ignoring case (restore is case-insensitive),
-# so two different values must not share a placeholder that differs only by case.
 $literals = @()
-$byPlaceholder = @{}   # case-insensitive: placeholder -> find
 foreach ($l in @(if ($mapping.Contains('replacements')) { $mapping['replacements'] })) {
     if ($null -eq $l -or [string]::IsNullOrWhiteSpace($l['find'])) { Write-Warning 'Skipping replacement with empty "find".'; continue }
     if ([string]::IsNullOrWhiteSpace($l['replace'])) { throw "Mapping error: replacement for '$($l['find'])' has an empty ""replace"". Use a placeholder such as 'contoso'." }
-    $ph = $l['replace']
-    if ($byPlaceholder.ContainsKey($ph) -and $byPlaceholder[$ph] -ne $l['find']) {
-        throw "Mapping error: placeholder '$ph' is used for both '$($byPlaceholder[$ph])' and '$($l['find'])'. Placeholders are compared ignoring case, so give each value a distinct placeholder (e.g. 'contoso' and 'Contoso Ltd')."
-    }
-    $byPlaceholder[$ph] = $l['find']
     $literals += [pscustomobject]@{
-        find = $l['find']; replace = $ph
-        findWords = [string[]]@(Split-Words $l['find']); replaceWords = [string[]]@(Split-Words $ph)
+        find = $l['find']; replace = $l['replace']
+        findWords = [string[]]@(Split-Words $l['find']); replaceWords = [string[]]@(Split-Words $l['replace'])
         wholeWord = [bool]($l.Contains('wholeWord') -and $l['wholeWord'])
     }
 }
@@ -284,15 +255,22 @@ $ignoreSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]:
 foreach ($i in @(if ($mapping.Contains('ignore')) { $mapping['ignore'] })) { [void]$ignoreSet.Add($i) }
 $keepValues = [System.Collections.Generic.HashSet[string]]::new([string[]]@('true', 'false', 'null'), [StringComparer]::OrdinalIgnoreCase)
 
-# auto map: patternName -> { original -> placeholder }  ([ordered] is case-insensitive, so GUID/email casing doesn't matter)
-$auto = Read-JsonFile $AutoMapPath
-if (-not $auto) { $auto = [ordered]@{} }
-foreach ($p in $patterns) { if (-not $auto.Contains($p.name)) { $auto[$p.name] = [ordered]@{} } }
+# Numbered placeholders for this run only, never persisted: patternName -> { original -> placeholder }
+# ([ordered] is case-insensitive, so GUID/email casing doesn't matter)
+$numbered = @{}
+foreach ($p in $patterns) { if (-not $numbered.ContainsKey($p.name)) { $numbered[$p.name] = [ordered]@{} } }
 
-# All existing placeholders (numbered + literal), for O(1) "already anonymised?" checks
+# All placeholders (literal, generated, and found in the input), for O(1) "already anonymised?" checks
 $placeholderSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-foreach ($name in @($auto.Keys)) { foreach ($v in @($auto[$name].Values)) { [void]$placeholderSet.Add($v) } }
 foreach ($l in $literals) { [void]$placeholderSet.Add($l.replace) }
+
+# Regex for text shaped like a numbered placeholder ({n} -> digits). Longest template first, so
+# host1.internal wins over host1.
+$shapes = @(foreach ($tpl in @($patterns | ForEach-Object { $_.replace } | Where-Object { $_ }) | Sort-Object Length -Descending) {
+    if ($tpl -eq '{ip}') { '(?:192\.0\.2|198\.51\.100|203\.0\.113|198\.1[89]\.\d{1,3})\.\d{1,3}' }
+    else { [regex]::Replace([regex]::Escape($tpl), '\\\{n(?::[^}]*)?}', '\d+') }
+})
+$PlaceholderShape = '(?i)(?<![A-Za-z0-9])(?:' + ($shapes -join '|') + ')(?![A-Za-z0-9])'
 
 # Values mapped explicitly in replacements are left to the literal step, so the user's own placeholder wins
 $literalFinds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -305,103 +283,72 @@ $text = if ($Path) { Get-Content -LiteralPath $Path -Raw -Encoding UTF8 }
         else { Get-Clipboard -Raw }
 
 if ([string]::IsNullOrEmpty($text)) { Write-Warning 'Nothing to process (empty input or cancelled).'; return }
+
+# Placeholders already in the input (re-run on anonymised text) are kept, and their numbers are not handed out again
+foreach ($m in [regex]::Matches($text, $PlaceholderShape)) { [void]$placeholderSet.Add($m.Value) }
 #endregion
 
 $stats = [ordered]@{}
 function Add-Stat($k) { if ($stats.Contains($k)) { $stats[$k]++ } else { $stats[$k] = 1 } }
 
-# One-pass literal replacement (both directions). Longest phrase first; named group per literal.
-function Invoke-Literals([string]$text, [bool]$toPlaceholder) {
-    if (@($literals).Length -eq 0) { return $text }
+#region Anonymise -------------------------------------------------------------------------
+# 1. Secrets
+foreach ($s in $secrets) {
+    $name = $s.name
+    $text = [regex]::Replace($text, $s.regex, {
+        param($m)
+        $g = $m.Groups['v']
+        $val = if ($g.Success) { $g.Value } else { $m.Value }
+        if ([string]::IsNullOrEmpty($val) -or $val.StartsWith('<redacted') -or $ignoreSet.Contains($val) -or $keepValues.Contains($val.Trim())) { return $m.Value }
+        Add-Stat "secret:$name"
+        if (-not $g.Success) { return "<redacted:$name>" }
+        $start = $g.Index - $m.Index
+        $m.Value.Substring(0, $start) + "<redacted:$name>" + $m.Value.Substring($start + $g.Length)
+    })
+}
+
+# 2. Patterns (numbered per run; same value -> same placeholder within the run)
+foreach ($p in $patterns) {
+    $name = $p.name; $tpl = $p.replace; $map = $numbered[$name]
+    $text = [regex]::Replace($text, $p.regex, {
+        param($m)
+        $g = $m.Groups['v']
+        $v = if ($g.Success) { $g.Value } else { $m.Value }
+        if ([string]::IsNullOrEmpty($v) -or $ignoreSet.Contains($v) -or $placeholderSet.Contains($v) -or $literalFinds.Contains($v)) { return $m.Value }   # ignored, already a placeholder, or mapped in replacements
+        if (-not $map.Contains($v)) {
+            $n = $map.Count
+            do { $ph = Format-Placeholder $tpl (++$n) } while ($placeholderSet.Contains($ph))
+            $map[$v] = $ph; [void]$placeholderSet.Add($ph)
+        }
+        Add-Stat $name
+        if (-not $g.Success) { return $map[$v] }
+        $start = $g.Index - $m.Index
+        $m.Value.Substring(0, $start) + $map[$v] + $m.Value.Substring($start + $g.Length)
+    })
+}
+
+# 3. Literals in one pass (case-insensitive, case-preserving; inside longer words unless wholeWord or multi-word).
+#    Longest phrase first; named group per literal.
+if ($literals.Count) {
     $i = 0
     $items = foreach ($l in $literals) {
-        $src = [string[]]@(if ($toPlaceholder) { $l.findWords } else { $l.replaceWords })
-        $dst = [string[]]@(if ($toPlaceholder) { $l.replaceWords } else { $l.findWords })
-        [pscustomobject]@{
-            g = "L$i"; src = $src; dst = $dst; n = $dst.Length; dstText = ($dst -join ' ')
-            len = ($src -join ' ').Length; rx = Get-PhraseRegex $src $dst.Length $l.wholeWord
-        }
+        [pscustomobject]@{ g = "L$i"; l = $l; len = ($l.findWords -join ' ').Length; rx = Get-PhraseRegex $l.findWords $l.replaceWords.Length $l.wholeWord }
         $i++
     }
     $items = @($items | Sort-Object len -Descending)
     $alt = ($items | ForEach-Object { "(?<$($_.g)>$($_.rx))" }) -join '|'
-    [regex]::Replace($text, "(?i)$alt", {
+    $text = [regex]::Replace($text, "(?i)$alt", {
         param($m)
         foreach ($it in $items) {
             if ($m.Groups[$it.g].Success) {
-                Add-Stat $(if ($toPlaceholder) { 'literal' } else { 'restored' })
-                return Convert-Phrase $m.Value $it.src $it.dst $it.dstText
+                Add-Stat 'literal'
+                return Convert-Phrase $m.Value $it.l.findWords $it.l.replaceWords ($it.l.replaceWords -join ' ')
             }
         }
         $m.Value
     })
 }
-
-if (-not $Restore) {
-    #region Anonymise ---------------------------------------------------------------------
-    # 1. Secrets (irreversible)
-    foreach ($s in $secrets) {
-        $name = $s.name
-        $text = [regex]::Replace($text, $s.regex, {
-            param($m)
-            $g = $m.Groups['v']
-            $val = if ($g.Success) { $g.Value } else { $m.Value }
-            if ([string]::IsNullOrEmpty($val) -or $val.StartsWith('<redacted') -or $ignoreSet.Contains($val) -or $keepValues.Contains($val.Trim())) { return $m.Value }
-            Add-Stat "secret:$name"
-            if (-not $g.Success) { return "<redacted:$name>" }
-            $start = $g.Index - $m.Index
-            $m.Value.Substring(0, $start) + "<redacted:$name>" + $m.Value.Substring($start + $g.Length)
-        })
-    }
-
-    # 2. Reversible patterns (consistent numbering, persisted)
-    foreach ($p in $patterns) {
-        $name = $p.name; $tpl = $p.replace; $map = $auto[$name]
-        $text = [regex]::Replace($text, $p.regex, {
-            param($m)
-            $g = $m.Groups['v']
-            $v = if ($g.Success) { $g.Value } else { $m.Value }
-            if ([string]::IsNullOrEmpty($v) -or $ignoreSet.Contains($v) -or $placeholderSet.Contains($v) -or $literalFinds.Contains($v)) { return $m.Value }   # ignored, already a placeholder, or mapped in replacements
-            if (-not $map.Contains($v)) {
-                $ph = Format-Placeholder $tpl ($map.Count + 1)
-                $map[$v] = $ph; [void]$placeholderSet.Add($ph)
-            }
-            Add-Stat $name
-            if (-not $g.Success) { return $map[$v] }
-            $start = $g.Index - $m.Index
-            $m.Value.Substring(0, $start) + $map[$v] + $m.Value.Substring($start + $g.Length)
-        })
-    }
-
-    # 3. Literals (case-insensitive, case-preserving; inside longer words unless wholeWord or multi-word)
-    $text = Invoke-Literals $text $true
-
-    $auto | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $AutoMapPath -Encoding UTF8
-    #endregion
-}
-else {
-    #region Restore -----------------------------------------------------------------------
-    # Inverse order of anonymise: literals first, then numbered placeholders.
-    # Literal placeholders: case-insensitive, case-preserving, inside longer words unless wholeWord.
-    # Numbered placeholders: whole tokens only (192.0.2.1 not inside 192.0.2.15).
-    $text = Invoke-Literals $text $false
-    $reverse = @{}   # case-insensitive: placeholder -> original
-    $alts = @()
-    foreach ($name in @($auto.Keys)) {
-        foreach ($orig in @($auto[$name].Keys)) {
-            $ph = $auto[$name][$orig]
-            if ($reverse.ContainsKey($ph)) { continue }
-            $reverse[$ph] = $orig
-            $alts += [pscustomobject]@{ len = $ph.Length; rx = '(?<![A-Za-z0-9])' + [regex]::Escape($ph) + '(?![A-Za-z0-9])' }
-        }
-    }
-    if ($alts.Count) {
-        $alt = ($alts | Sort-Object len -Descending | ForEach-Object { $_.rx }) -join '|'
-        $text = [regex]::Replace($text, "(?i)$alt", { param($m) Add-Stat 'restored'; $reverse[$m.Value] })
-    }
-    if ($text -match '<redacted:') { Write-Status 'Note: <redacted:...> secrets are never restored.' 'Yellow' }
-    #endregion
-}
+#endregion
 
 #region Output ---------------------------------------------------------------------------
 if ($NoClipboard) { $text }
@@ -410,7 +357,6 @@ else {
     if ($Show) { Write-Host $text }
 }
 $summary = if ($stats.Count) { ($stats.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', ' } else { 'no matches' }
-$verb = if ($Restore) { 'Restored' } else { 'Anonymised' }
 $dest = if ($NoClipboard) { 'stdout' } else { 'clipboard' }
-Write-Status "$verb $($text.Length) chars -> $dest  [$summary]"
+Write-Status "Anonymised $($text.Length) chars -> $dest  [$summary]"
 #endregion

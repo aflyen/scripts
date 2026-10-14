@@ -5,9 +5,8 @@
     "  so 'fjordtek' also covers fjordtek.no, func-fjordtek-prod, kv-fjordtek, FJORDTEK-PC042.",
     "  Add longer phrases only when they need their own placeholder. Longest match wins.",
     "  Use \"wholeWord\": true for short names/abbreviations that could appear inside other words.",
-    "  Every placeholder must be unique ignoring case ('contoso' and 'Contoso' count as the same).",
-    "patterns: reversible custom regex. {n} = running number. A group named 'v' limits what is replaced.",
-    "secretPatterns: irreversible custom regex, replaced with <redacted:name>.",
+    "patterns: custom regex. {n} = running number. A group named 'v' limits what is replaced.",
+    "secretPatterns: custom regex, replaced with <redacted:name>.",
     "ignore: values that are never touched (well-known Microsoft app IDs, localhost)."
   ],
 

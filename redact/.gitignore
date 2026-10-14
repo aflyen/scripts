@@ -1,6 +1,5 @@
-# Real customer mapping and generated placeholders: NEVER commit
+# Real customer mapping: NEVER commit
 mapping.json
-mapping.auto.json
 mapping.*.json
 !mapping.example.json
 
