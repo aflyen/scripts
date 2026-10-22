@@ -10,6 +10,7 @@ Generates lorem ipsum-style filler text using real words and coherent structure,
 - Optional concise title.
 - Optional basic markdown output.
 - Template modes for common article-like outputs.
+- Copies generated text to the clipboard by default while still writing it to the output stream.
 
 ## Templates
 
@@ -43,3 +44,13 @@ Document-style markdown output:
 ```powershell
 .\DummyTextGenerator.ps1 -Template Document -Markdown
 ```
+
+Skip copying to the clipboard:
+
+```powershell
+.\DummyTextGenerator.ps1 -NoClipboard
+```
+
+Clipboard support uses `Set-Clipboard` on Windows, `pbcopy` on macOS, or
+`xclip`/`xsel` on Linux. If the required clipboard utility is unavailable or
+copying fails, the script warns and still outputs the generated text.

@@ -6,7 +6,8 @@
 .DESCRIPTION
     Creates lorem ipsum-style content using curated, real-word sentence pools.
     Supports English and Norwegian, optional title, markdown formatting,
-    and simple templates for common demo scenarios.
+    and simple templates for common demo scenarios. Generated text is copied
+    to the clipboard by default.
 .PARAMETER Template
     Selects a content template: Custom, Simple, NewsArticle, or Document.
 .PARAMETER Language
@@ -18,12 +19,16 @@
     Adds a concise generated title in Custom template output.
 .PARAMETER Markdown
     Formats output using basic markdown (headings and bold preface).
+.PARAMETER NoClipboard
+    Prevents the generated text from being copied to the clipboard.
 .EXAMPLE
     .\DummyTextGenerator.ps1
 .EXAMPLE
     .\DummyTextGenerator.ps1 -Template NewsArticle -Language Norwegian -Markdown
 .EXAMPLE
     .\DummyTextGenerator.ps1 -Template Custom -ParagraphCount 4 -IncludeTitle
+.EXAMPLE
+    .\DummyTextGenerator.ps1 -NoClipboard
 .NOTES
      Author    : Are Flyen
      Date      : 17.06.2026
@@ -49,7 +54,10 @@ param(
     [switch]$IncludeTitle,
 
     [Parameter()]
-    [switch]$Markdown
+    [switch]$Markdown,
+
+    [Parameter()]
+    [switch]$NoClipboard
 )
 
 Set-StrictMode -Version Latest
@@ -319,6 +327,53 @@ function New-DummyArticleText {
     return ($resultParts -join $separator)
 }
 
+function Copy-TextToClipboard {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Text
+    )
+
+    if ($IsWindows) {
+        Set-Clipboard -Value $Text
+        return
+    }
+
+    if ($IsLinux) {
+        if (Get-Command xclip -ErrorAction SilentlyContinue) {
+            $Text | xclip -selection clipboard
+            if ($LASTEXITCODE -ne 0) {
+                throw "'xclip' failed to copy text to the clipboard (exit code $LASTEXITCODE)."
+            }
+            return
+        }
+
+        if (Get-Command xsel -ErrorAction SilentlyContinue) {
+            $Text | xsel --clipboard --input
+            if ($LASTEXITCODE -ne 0) {
+                throw "'xsel' failed to copy text to the clipboard (exit code $LASTEXITCODE)."
+            }
+            return
+        }
+
+        throw "Clipboard copying on Linux requires 'xclip' or 'xsel'."
+    }
+
+    if ($IsMacOS) {
+        if (-not (Get-Command pbcopy -ErrorAction SilentlyContinue)) {
+            throw "Clipboard copying on macOS requires 'pbcopy'."
+        }
+
+        $Text | pbcopy
+        if ($LASTEXITCODE -ne 0) {
+            throw "'pbcopy' failed to copy text to the clipboard (exit code $LASTEXITCODE)."
+        }
+        return
+    }
+
+    throw 'Clipboard copying is not supported on this operating system.'
+}
+
 try {
     $articleText = New-DummyArticleText `
         -TemplateName $Template `
@@ -327,7 +382,21 @@ try {
         -RenderMarkdown ([bool]$Markdown) `
         -RequestedTitle ([bool]$IncludeTitle)
 
+    $copiedToClipboard = $false
+    if (-not $NoClipboard) {
+        try {
+            Copy-TextToClipboard -Text $articleText
+            $copiedToClipboard = $true
+        }
+        catch {
+            Write-Warning "Generated text but failed to copy it to the clipboard. $($_.Exception.Message)"
+        }
+    }
+
     $articleText
+    if ($copiedToClipboard) {
+        Write-Host 'Nice! Your text is copied to the clipboard.' -ForegroundColor Green
+    }
 }
 catch {
     Write-Error "Failed to generate dummy text. $($_.Exception.Message)"
