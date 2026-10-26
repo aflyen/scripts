@@ -127,7 +127,14 @@ function Read-JsonFile([string]$file) {
     if (-not (Test-Path -LiteralPath $file)) { return $null }
     $raw = Get-Content -LiteralPath $file -Raw -Encoding UTF8
     if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-    ConvertTo-Hashtable ($raw | ConvertFrom-Json)
+    try { $json = $raw | ConvertFrom-Json }
+    catch {
+        # Never echo the parser message as-is: Windows PowerShell 5.1 appends the whole file (every customer name) to it
+        $why = (($_.Exception.Message -split '\r?\n')[0] -replace '\)\s*:.*$', ')') -replace '^Conversion from JSON failed with error:\s*', ''
+        Write-Error "$file is not valid JSON: $why Usually a missing or extra comma just before that line." -ErrorAction Continue
+        exit 2
+    }
+    ConvertTo-Hashtable $json
 }
 
 function Get-TestNetIp([int]$n) {
