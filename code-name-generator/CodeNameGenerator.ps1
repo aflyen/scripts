@@ -10,6 +10,8 @@
     - "Blue Tiger Tokyo 2025"
     - "Red Elephant Paris"
     - "Green Dolphin Berlin 47"
+    - "Swift Blizzard Sequoia"
+    - "Scarlet Nebula Falcon 42"
 
 .EXAMPLE
     .\CodeNameGenerator.ps1
@@ -57,6 +59,10 @@ function Get-RandomCodeName {
         $patterns.Add(@('adjectives', 'animals', 'locations'))       # Swift Eagle Berlin
         $patterns.Add(@('colors', 'nouns', 'locations'))             # Red Summit Paris
         $patterns.Add(@('adjectives', 'nouns', 'locations', 'number')) # Bold Horizon Tokyo 42
+        $patterns.Add(@('weather', 'animals', 'locations'))           # Blizzard Tiger Tokyo
+        $patterns.Add(@('space', 'plants', 'locations'))              # Nebula Sequoia Kyoto
+        $patterns.Add(@('adjectives', 'plants', 'weather'))            # Swift Clover Monsoon
+        $patterns.Add(@('colors', 'space', 'animals', 'number'))       # Scarlet Nebula Falcon 42
 
         # Select a random pattern
         $randomIndex = Get-Random -Minimum 0 -Maximum $patterns.Count

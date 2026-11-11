@@ -3,14 +3,23 @@
     "Red", "Blue", "Green", "Yellow", "Orange", "Purple", "Silver", "Golden",
     "Crimson", "Azure", "Emerald", "Amber", "Violet", "Indigo", "Cyan", "Magenta",
     "Coral", "Jade", "Ruby", "Sapphire", "Pearl", "Ivory", "Onyx", "Platinum",
-    "Bronze", "Copper", "Steel", "Iron", "Chrome", "Cobalt"
+    "Bronze", "Copper", "Steel", "Iron", "Chrome", "Cobalt",
+    "Scarlet", "Teal", "Turquoise", "Lavender", "Maroon", "Obsidian",
+    "Charcoal", "Mint", "Saffron", "Topaz", "Amethyst", "Garnet",
+    "Periwinkle", "Ochre", "Cerulean", "Lilac", "Fuchsia", "Moss",
+    "Slate", "Rose", "Apricot"
   ],
   "animals": [
     "Eagle", "Tiger", "Lion", "Bear", "Wolf", "Hawk", "Falcon", "Panther",
     "Leopard", "Cheetah", "Jaguar", "Cobra", "Viper", "Python", "Dragon",
     "Phoenix", "Griffin", "Raven", "Owl", "Fox", "Lynx", "Puma", "Orca",
     "Shark", "Dolphin", "Whale", "Bison", "Mustang", "Stallion", "Pegasus",
-    "Rhino", "Elephant", "Gorilla", "Condor", "Vulture", "Sparrow", "Robin"
+    "Rhino", "Elephant", "Gorilla", "Condor", "Vulture", "Sparrow", "Robin",
+    "Badger", "Otter", "Panda", "Koala", "Moose", "Lemur", "Meerkat",
+    "Hedgehog", "Tortoise", "Gecko", "Iguana", "Chameleon", "Pelican",
+    "Heron", "Kingfisher", "Albatross", "Hummingbird", "Crane", "Manta",
+    "Narwhal", "Walrus", "Seal", "Gazelle", "Coyote", "Hyena", "Bongo",
+    "Wombat", "Platypus", "Kestrel", "Dragonfly", "Firefly", "Thunderbird"
   ],
   "locations": [
     "Tokyo", "Paris", "London", "Berlin", "Rome", "Madrid", "Vienna", "Prague",
@@ -19,18 +28,54 @@
     "Milan", "Venice", "Florence", "Munich", "Hamburg", "Sydney", "Melbourne",
     "Toronto", "Montreal", "Vancouver", "Seattle", "Denver", "Phoenix", "Dallas",
     "Boston", "Austin", "Portland", "Chicago", "Miami", "Atlanta", "Nashville",
-    "Singapore", "Dubai", "Kyoto", "Osaka", "Seoul", "Bangkok", "Hanoi"
+    "Singapore", "Dubai", "Kyoto", "Osaka", "Seoul", "Bangkok", "Hanoi",
+    "Reykjavik", "Edinburgh", "Cairo", "Marrakech", "CapeTown", "Nairobi",
+    "Lima", "Cusco", "Santiago", "BuenosAires", "Tallinn", "Riga", "Vilnius",
+    "Krakow", "Salzburg", "Istanbul",
+    "Taipei", "Shanghai", "Beijing", "Manila", "Jakarta", "Auckland",
+    "Honolulu", "Anchorage", "Quebec", "SanDiego", "SanFrancisco",
+    "NewOrleans", "LasVegas", "Tucson", "Savannah"
   ],
   "adjectives": [
     "Swift", "Bold", "Brave", "Mighty", "Strong", "Quick", "Silent", "Hidden",
     "Ancient", "Modern", "Future", "Cosmic", "Solar", "Lunar", "Arctic", "Alpine",
     "Ocean", "Storm", "Thunder", "Lightning", "Crystal", "Diamond", "Quantum",
-    "Digital", "Cyber", "Nova", "Prime", "Ultra", "Mega", "Turbo"
+    "Digital", "Cyber", "Nova", "Prime", "Ultra", "Mega", "Turbo",
+    "Radiant", "Mystic", "Electric", "Velvet", "Frosty", "Blazing",
+    "Whispering", "Daring", "Vivid", "Epic", "Curious", "Stellar",
+    "Astral", "Golden", "Clever", "Mellow", "Wild", "Serene",
+    "Brilliant", "Stealthy", "Spirited", "Majestic", "Lucky",
+    "Shimmering", "Fearless", "Breezy", "Twilight", "Super", "Infinite"
   ],
   "nouns": [
     "Summit", "Horizon", "Eclipse", "Zenith", "Apex", "Nexus", "Vortex", "Matrix",
     "Vector", "Sigma", "Delta", "Alpha", "Omega", "Titan", "Atlas", "Olympus",
     "Citadel", "Fortress", "Tower", "Beacon", "Portal", "Gateway", "Bridge",
-    "Haven", "Sanctuary", "Outpost", "Station", "Base", "Core", "Hub"
+    "Haven", "Sanctuary", "Outpost", "Station", "Base", "Core", "Hub",
+    "Meadow", "Glacier", "Canyon", "Lagoon", "Forest", "Comet", "Orbit",
+    "Aurora", "Mirage", "Monolith", "Labyrinth", "Workshop", "Observatory",
+    "Garden", "Waterfall", "Archipelago", "Tundra", "Volcano", "Reef",
+    "Compass", "Chronicle", "Engine", "Lantern", "Prism", "Voyage",
+    "Expedition", "Blueprint", "Enigma", "Odyssey", "Paradox", "Terrace",
+    "Pavilion", "Constellation", "Whirlpool", "Wildwood", "Moonstone",
+    "Starship", "Campfire", "Lookout", "Wonder"
+  ],
+  "weather": [
+    "Monsoon", "Blizzard", "Cyclone", "Tempest", "Gale", "Frost", "Hail",
+    "Drizzle", "Downpour", "Sirocco", "Zephyr", "Thunderstorm", "Tornado",
+    "Mistral", "Snowfall", "Heatwave", "Squall", "Cloudburst", "Sunshine",
+    "Rainbow", "Mist", "Breeze", "Frostbite", "Whirlwind"
+  ],
+  "space": [
+    "Nebula", "Pulsar", "Quasar", "Meteor", "Cosmos", "Galaxy", "Supernova",
+    "Asteroid", "Stardust", "Satellite", "Comet", "BlackHole", "Lunardust",
+    "Starcluster", "Andromeda", "Redshift", "Moonbeam", "Orbit", "Solstice",
+    "Equinox", "Zenith", "Apogee", "Perigee", "CosmicRay"
+  ],
+  "plants": [
+    "Sequoia", "Juniper", "Willow", "Clover", "Fern", "Cypress", "Magnolia",
+    "Redwood", "Acacia", "Lotus", "Orchid", "Thistle", "Aspen", "Briar",
+    "Maple", "Cedar", "Bamboo", "Marigold", "Bluebell", "Sage", "Yarrow",
+    "Hawthorn", "Dogwood", "Rosemary"
   ]
 }
